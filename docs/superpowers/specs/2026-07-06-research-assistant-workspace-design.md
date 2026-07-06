@@ -121,6 +121,26 @@ Verified by exercising the real flows with a handful of real PDFs (including one
 4. "Which papers use X?" answered from index/tags with correct slugs; a deep quantitative question shows full-text-grounded quotes with page anchors.
 5. Add 2 more PDFs → sync processes only those 2; landscape updates.
 
+## Repo as a replicable template
+
+The workspace lives in a GitHub repo, but only the *machinery* is versioned — anyone can clone it, drop their own PDFs into `papers/`, and generate their own index/cards/landscape. `.gitignore` excludes everything corpus-derived:
+
+```gitignore
+papers/*
+text/*
+notes/*
+_duplicates/*
+!papers/.gitkeep
+!text/.gitkeep
+!notes/.gitkeep
+!_duplicates/.gitkeep
+index.yaml
+INDEX.md
+LANDSCAPE.md
+```
+
+Committed: `CLAUDE.md`, `.claude/` (hook script, settings, skills), `docs/`, `README.md` (what this is + how to use it with your own papers), `.gitignore`, and `.gitkeep` files so the empty `papers/` directory structure survives cloning.
+
 ## Explicitly cut from v1 (tracked for later)
 
 Auto-OCR, BibTeX export, Zotero sync, auto-downloading missing papers, PDF annotation, interactive HTML graph, embeddings/search index (revisit only past ~300 papers).

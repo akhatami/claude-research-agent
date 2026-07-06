@@ -5,7 +5,7 @@ description: Ingest new or changed PDFs in papers/ — extract text, verify meta
 
 # /sync — corpus ingestion and regeneration
 
-Incremental by design: a PDF is "new" iff its sha256 does not appear in `index.yaml`. Also report **orphans** (index entries whose PDF no longer exists in `papers/` or `_duplicates/`) — report only, never auto-remove.
+Incremental by design: a PDF is "new" iff its sha256 does not appear in `index.yaml`. On each sync, also re-attempt metadata verification for entries with `status: metadata-unverified`, updating them to `ok` on success. Also report **orphans** (index entries whose PDF no longer exists in `papers/` or `_duplicates/`) — report only, never auto-remove.
 
 Prerequisite: `pdftotext` (poppler). If missing, stop and tell the user to run `brew install poppler`.
 
@@ -37,7 +37,7 @@ Include uncertain dedupe cases as explicit questions. **Wait for approval. Do no
 
 Per approved row:
 
-1. Rename PDF to `papers/<slug>.pdf` (this is the ONLY time this file is ever renamed) or move duplicate to `_duplicates/` (keep its original name there).
+1. Rename PDF to `papers/<slug>.pdf` (this is the ONLY time this file is ever renamed) or move duplicate to `_duplicates/` (keep its original name there). When moving a duplicate, record the verdict in the KEEPER's `index.yaml` entry under its `duplicates:` list (schema below) — recording the hash preserves provenance and suppresses re-detection if the same file is dropped into `papers/` again.
 2. Save extracted text to `text/<slug>.md`.
 3. Write the card to `notes/<slug>.md` (template below).
 4. Append the entry to `index.yaml` (schema below).
@@ -67,9 +67,13 @@ Per approved row:
   relations:
     - {to: 2021-doe-simclr-v3, type: builds-on, why: "extends its objective, §3.1"}
       # types: builds-on | same-method-family | same-dataset | competes-with | surveys
+  duplicates:
+    - {file: "_duplicates/attention-v1.pdf", original_filename: "attention-v1.pdf", file_hash: sha256:<full hex digest>, verdict: "same arXiv ID (v1); kept latest version"}
 ```
 
 Every relation edge carries a one-line `why` justification grounded in the paper.
+
+`duplicates` is optional and only present on entries that are the kept version of at least one duplicate. Recording the duplicate's hash also preserves provenance and suppresses re-detection if the same file is dropped into `papers/` again.
 
 ## Card template — notes/<slug>.md
 

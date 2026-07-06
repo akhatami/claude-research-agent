@@ -6,9 +6,13 @@ cd "${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}" || exit 0
 [ -d papers ] || exit 0
 
 new_files=()
-for f in papers/*.pdf; do
+for f in papers/*.[pP][dD][fF]; do
   [ -e "$f" ] || continue
   hash=$(shasum -a 256 "$f" | awk '{print $1}')
+  if [ -z "$hash" ]; then
+    new_files+=("$f")
+    continue
+  fi
   if ! grep -q "$hash" index.yaml 2>/dev/null; then
     new_files+=("$f")
   fi

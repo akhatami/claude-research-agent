@@ -10,7 +10,7 @@ A replicable [Claude Code](https://claude.com/claude-code) workspace that turns 
 **Requirements**
 
 - Claude Code
-- `pdftotext` from poppler: `brew install poppler`
+- `pdftotext` from poppler: `brew install poppler` (macOS) / `apt install poppler-utils` (Linux)
 
 **Use with your own papers**
 

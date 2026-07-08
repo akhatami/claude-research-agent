@@ -1,6 +1,6 @@
 ---
 name: sync
-description: Ingest new or changed PDFs in papers/ — extract text, verify metadata, dedupe, rename once (after dry-run approval), write per-paper cards, update index.yaml, and regenerate INDEX.md and LANDSCAPE.md. Use when the session-start hook reports new papers or the user asks to sync/organize the corpus.
+description: Ingest new or changed PDFs in papers/ — extract text, verify metadata, dedupe, rename once (after dry-run approval), write per-paper cards, update index.yaml, harvest referenced-but-not-held ghost papers into refs.yaml, and regenerate INDEX.md and LANDSCAPE.md. Use when the session-start hook reports new papers or the user asks to sync/organize the corpus.
 ---
 
 # /sync — corpus ingestion and regeneration
@@ -30,8 +30,9 @@ Present one plan table to the user:
 |---|---|---|---|
 | `2301.04567v2.pdf` | rename | `papers/2023-smith-contrastive-distillation.pdf` | new paper |
 | `smith_preprint.pdf` | move | `_duplicates/smith_preprint.pdf` | duplicate of 2023-smith-… (arXiv id match) |
+| `Wu_RPLAN_2019.pdf` | rename + promote | `papers/2019-wu-rplan.pdf` | promotes ⟨ghost:2019-wu-rplan⟩ → held paper |
 
-Include uncertain dedupe cases as explicit questions. **Wait for approval. Do not touch files before it.**
+Include uncertain dedupe cases as explicit questions. If a new PDF matches an existing ghost in `refs.yaml` (shared DOI/arXiv, or fuzzy title + first-author), present it as a **promotion**: on approval it is ingested as a normal held paper, and Phase 5 then removes its ghost entry and turns its former `cited_by` papers into inbound `relations:`. **Wait for approval. Do not touch files before it.**
 
 ## Phase 3 — Execute
 
@@ -44,11 +45,30 @@ Per approved row:
 
 ## Phase 4 — Regenerate
 
-1. **`INDEX.md`** — generated table over all `index.yaml` entries, sorted by year desc: `| slug | title | year | venue | tags | one-line summary | status |`. Header note: "Generated from index.yaml — do not edit by hand."
-2. **`LANDSCAPE.md`** — the corpus story, regenerated from `index.yaml` + cards:
+1. **`INDEX.md`** — generated table over all `index.yaml` entries (held papers only — ghosts never appear here), sorted by year desc: `| slug | title | year | venue | tags | one-line summary | status |`. Header note: "Generated from index.yaml — do not edit by hand."
+2. **`LANDSCAPE.md`** — the corpus story, regenerated from `index.yaml` + cards + `refs.yaml`:
    - Thematic clusters (from tags/relations): what each cluster is trying to solve, which papers belong, how clusters connect, and where the open tensions/gaps are. Narrative prose, not bullets-only.
-   - A Mermaid `graph TD` of relations: nodes are slugs, edges labeled with the relation type. Same generated-file header note.
+   - A Mermaid `graph TD` of relations: held nodes are slugs, edges labeled with the relation type. Draw each ghost as a node with id `ghost_<key>` styled distinctly (dashed border, dimmed) via a `classDef ghost`, with an edge from each citing held paper labeled `references`. Same generated-file header note.
+   - **Ghost papers — referenced but not held (promotion candidates)** (from `refs.yaml`): a table sorted by pull (co-citation `count`) descending — `| ghost | year | pull | cited by | why |`. This is the promotion shortlist; the ghosts whose absence most weakens the corpus sit at the top.
 3. Report orphans and any `needs-ocr` / `metadata-unverified` statuses in the final summary to the user.
+
+## Phase 5 — Harvest ghosts (referenced-but-not-held papers)
+
+Runs after Phase 4 on every sync. Produces/updates `refs.yaml` and the ghost surfaces in `LANDSCAPE.md`. Ghosts are sourced ONLY from held papers' own bibliographies — no external lookup for discovery.
+
+1. **Extract bibliographies:** for each held paper, take the References/Bibliography section from `text/<slug>.md` (the tail after the last "References"/"Bibliography" heading).
+2. **Parse & normalize** each reference entry → first-author surname, year, title fragment, DOI/arXiv id if present. Bibliographies from `status: needs-ocr` papers may be garbled — best-effort only.
+3. **Resolve against held papers first:** if a reference matches an existing `index.yaml` slug (shared DOI/arXiv, or fuzzy title + first-author), it is a normal `relations:` edge, NOT a ghost — drop it from the ghost pass.
+4. **Match/merge across papers:** group references that are the same work — exact by shared DOI/arXiv, else fuzzy on first-author + year + title. When a match is ambiguous, DO NOT merge (two near-duplicate ghosts is a smaller harm than a wrong merge). Each surviving group gets a `cited_by` list of the held slugs that reference it.
+5. **Select (hybrid):** keep a group as a ghost iff `len(cited_by) ≥ 2`, OR it is carried forward as `status: pinned`. Exclude any group whose key is `status: rejected`. Non-pinned singletons are excluded.
+6. **Assign keys & reconcile with existing `refs.yaml`:**
+   - New ghost → `key` = `YYYY-firstauthor-short-title` (same shape as a slug), frozen once assigned.
+   - Existing ghost → preserve its `key`, `status`, and `note`; refresh `cited_by` and enriched fields.
+   - **Promotion:** if a ghost now matches a paper newly held after this sync's Phase 3, remove it from `refs.yaml` (it has graduated) and add the held papers in its former `cited_by` as inbound `relations:` on the promoted paper's `index.yaml` entry.
+7. **Enrich (best-effort, above-threshold ghosts only):** verify metadata via Crossref/arXiv exactly as Phase 1 does, filling `venue`/`ids`. Offline or no confident match → leave best-effort `title`/`year` with `ids: null`; retried on later syncs.
+8. **Write `refs.yaml`** (schema below) and render the ghost surfaces in `LANDSCAPE.md` per Phase 4.
+
+Curation verdicts persist across syncs: a ghost the user dismisses is recorded `status: rejected` with a `note` and never re-surfaces; a foundational singleton the agent keeps is `status: pinned` with a `note` reason.
 
 ## index.yaml entry schema
 
@@ -74,6 +94,24 @@ Per approved row:
 Every relation edge carries a one-line `why` justification grounded in the paper.
 
 `duplicates` is optional and only present on entries that are the kept version of at least one duplicate. Recording the duplicate's hash also preserves provenance and suppresses re-detection if the same file is dropped into `papers/` again.
+
+## refs.yaml entry schema (ghost tier)
+
+`refs.yaml` is machine truth for ghosts — referenced but NOT held, non-grounded, never citable on their own. Gitignored like `index.yaml`.
+
+```yaml
+- key: 2019-wu-rplan                       # YYYY-firstauthor-short-title (slug-shaped); frozen once assigned
+  title: "Data-driven Interior Plan Generation for Residential Buildings"
+  authors: ["Wu, Wenming"]
+  year: 2019
+  ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (above-threshold ghosts only)
+  cited_by: [2022-shabani-housediffusion-vector-floorplan, 2025-hu-gsdiff-structural-graph-floorplan-diffusion]
+  why: "RPLAN — the benchmark dataset much of the corpus trains on"
+  status: candidate                        # candidate (≥2 citers) | pinned (foundational singleton) | rejected
+  note: null                               # required reason when pinned or rejected
+```
+
+`count = len(cited_by)`, always derived — never hand-authored. Only held papers contribute to `cited_by`. Ghosts are cited in prose as `⟨ghost:key⟩` and never ground a claim about their own content.
 
 ## Card template — notes/<slug>.md
 

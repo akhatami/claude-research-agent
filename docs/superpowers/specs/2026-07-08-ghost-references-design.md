@@ -89,8 +89,8 @@ Bibliographies from `needs-ocr` papers may be garbled; references sourced only f
 ## Surfacing — where the user decides what to promote
 
 - **`LANDSCAPE.md`** gains a **"Ghost papers — referenced but not held (promotion candidates)"** section: a table sorted by pull (count) descending —
-  `| ghost | year | pull | cited by | why |`. Read top-down = the promotion shortlist; the ghosts whose absence most weakens the corpus sit at the top.
-- **Mermaid graph:** ghost nodes rendered in a distinct style (dashed border / dimmed) so they are visibly the map's *inbound roads*, clearly separated from held nodes. Only the top ~8 ghosts by pull are drawn (with up to 3 `references` edges each) to keep the graph readable — the table lists all ghosts; node ids sanitize hyphens to underscores for Mermaid.
+  `| ghost | year | pull | status | cited by | why |` (the `status` column marks `pinned` rows so an intentional pin at `pull 1` does not look like a rule violation). Read top-down = the promotion shortlist; the ghosts whose absence most weakens the corpus sit at the top.
+- **Mermaid graph:** ghost nodes rendered in a distinct style (dashed border / dimmed) so they are visibly the map's *inbound roads*, clearly separated from held nodes. Only the top ~8 ghosts by pull are drawn (with up to 3 `references` edges each) to keep the graph readable — the table lists all ghosts. All node ids are kept hyphen-free for Mermaid (held nodes use short aliases with the readable name in the label; ghost nodes use `ghost_<key>` with hyphens→underscores).
 - **`INDEX.md`:** unchanged — stays **held-papers-only**. It is the citable overview table; keeping ghosts out of it preserves the firewall. (Ghosts live only in the map, `LANDSCAPE.md`.)
 
 ## Lifecycle
@@ -108,7 +108,7 @@ Bibliographies from `needs-ocr` papers may be garbled; references sourced only f
      → new-PDF hook detects it → /sync Phase 2 dry-run confirms
        "this PDF matches ⟨ghost:key⟩ → promote"
      → graduates to a held paper in index.yaml; leaves refs.yaml
-     → its cited_by edges become real inbound relations on the new slug
+     → its ghost entry is removed (converting its former citers into real held→held relations is the deferred relations-backfill follow-up)
 ```
 
 - **reject** — user tells the agent a ghost is not worth holding; agent sets `status: rejected` with a `note`. Future syncs never re-surface it. Mirrors how dedupe verdicts persist today.
@@ -120,8 +120,8 @@ Bibliographies from `needs-ocr` papers may be garbled; references sourced only f
 | file | change |
 |---|---|
 | `refs.yaml` | **new** — ghost machine truth; gitignored like `index.yaml` |
-| `.claude/skills/sync/SKILL.md` | add Phase 5 (harvest), `refs.yaml` schema, promotion detection in Phase 2 dry-run, ghost render rules for Phase 4 |
-| `CLAUDE.md` | ghost firewall rules, `⟨ghost:key⟩` marker, `refs.yaml` as a routing-only tier in tiered routing |
+| `.claude/skills/sync/SKILL.md` | add Phase 5 (harvest + ghost render), `refs.yaml` schema, promotion detection in Phase 2 dry-run |
+| `CLAUDE.md` | dedicated "Ghost papers" section: firewall rules, `⟨ghost:key⟩` marker, `refs.yaml` as a routing-only (never grounding) tier |
 | `.gitignore` | add `refs.yaml` |
 | `README.md` | move the ghost tier from "not in v1" to shipped; one-line description |
 

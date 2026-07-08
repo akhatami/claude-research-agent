@@ -32,7 +32,7 @@ Present one plan table to the user:
 | `smith_preprint.pdf` | move | `_duplicates/smith_preprint.pdf` | duplicate of 2023-smith-… (arXiv id match) |
 | `Wu_RPLAN_2019.pdf` | rename + promote | `papers/2019-wu-rplan.pdf` | promotes ⟨ghost:2019-wu-rplan⟩ → held paper |
 
-Include uncertain dedupe cases as explicit questions. If a new PDF matches an existing ghost in `refs.yaml` (shared DOI/arXiv, or fuzzy title + first-author), present it as a **promotion**: on approval it is ingested as a normal held paper, and Phase 5 then removes its ghost entry and turns its former `cited_by` papers into inbound `relations:`. **Wait for approval. Do not touch files before it.**
+Include uncertain dedupe cases as explicit questions. If a new PDF matches an existing ghost in `refs.yaml` (shared DOI/arXiv, or fuzzy title + first-author), present it as a **promotion**: on approval it is ingested as a normal held paper, and Phase 5 then removes its former ghost entry from `refs.yaml`. **Wait for approval. Do not touch files before it.**
 
 ## Phase 3 — Execute
 
@@ -46,10 +46,9 @@ Per approved row:
 ## Phase 4 — Regenerate
 
 1. **`INDEX.md`** — generated table over all `index.yaml` entries (held papers only — ghosts never appear here), sorted by year desc: `| slug | title | year | venue | tags | one-line summary | status |`. Header note: "Generated from index.yaml — do not edit by hand."
-2. **`LANDSCAPE.md`** — the corpus story, regenerated from `index.yaml` + cards + `refs.yaml`:
+2. **`LANDSCAPE.md`** (held content) — the corpus story, regenerated from `index.yaml` + cards. Held papers only here; the ghost surfaces are added afterward by Phase 5 (which owns `refs.yaml`):
    - Thematic clusters (from tags/relations): what each cluster is trying to solve, which papers belong, how clusters connect, and where the open tensions/gaps are. Narrative prose, not bullets-only.
-   - A Mermaid `graph TD` of relations: held nodes are slugs, edges labeled with the relation type. Draw ghost nodes only for the top ~8 ghosts by pull (`len(cited_by)`) to keep the graph readable — the promotion table lists ALL ghosts. Each drawn ghost gets node id `ghost_<key>` with hyphens in `<key>` replaced by underscores (hyphens break Mermaid ids), styled distinctly (dashed border, dimmed) via a `classDef ghost`, with edges labeled `references` from up to 3 of its citing held papers. Same generated-file header note.
-   - **Ghost papers — referenced but not held (promotion candidates)** (from `refs.yaml`): a table sorted by pull (co-citation `count`) descending — `| ghost | year | pull | cited by | why |`. This is the promotion shortlist; the ghosts whose absence most weakens the corpus sit at the top.
+   - A Mermaid `graph TD` of relations over HELD papers only: nodes use short hyphen-free aliases (the slug or title in the node label), edges labeled with the relation type. Keep node ids hyphen-free for Mermaid compatibility. Ghost nodes are added by Phase 5 — do not draw them here. Same generated-file header note.
 3. Report orphans and any `needs-ocr` / `metadata-unverified` statuses in the final summary to the user.
 
 ## Phase 5 — Harvest ghosts (referenced-but-not-held papers)
@@ -58,15 +57,17 @@ Runs after Phase 4 on every sync. Produces/updates `refs.yaml` and the ghost sur
 
 1. **Extract bibliographies:** for each held paper, take the References/Bibliography section from `text/<slug>.md` (the tail after the last "References"/"Bibliography" heading).
 2. **Parse & normalize** each reference entry → first-author surname, year, title fragment, DOI/arXiv id if present. Bibliographies from `status: needs-ocr` papers may be garbled — best-effort only.
-3. **Resolve against held papers first:** if a reference matches an existing `index.yaml` slug (shared DOI/arXiv, or fuzzy title + first-author), it is a normal `relations:` edge, NOT a ghost — drop it from the ghost pass.
+3. **Resolve against held papers first:** if a reference matches an existing `index.yaml` slug (shared DOI/arXiv, or fuzzy title + first-author), it is a held→held citation, NOT a ghost — exclude it from the ghost pass. (Writing that citation as a real `relations:` edge is the deferred relations-backfill; for now it is only excluded from ghosting.)
 4. **Match/merge across papers:** group references that are the same work — exact by shared DOI/arXiv, else fuzzy on first-author + year + title. When a match is ambiguous, DO NOT merge (two near-duplicate ghosts is a smaller harm than a wrong merge). Each surviving group gets a `cited_by` list of the held slugs that reference it.
 5. **Select (hybrid):** keep a group as a ghost iff `len(cited_by) ≥ 2`, OR it is carried forward as `status: pinned`. Exclude any group whose key is `status: rejected`. Non-pinned singletons are excluded.
 6. **Assign keys & reconcile with existing `refs.yaml`:**
    - New ghost → `key` = `YYYY-firstauthor-short-title` (same shape as a slug), frozen once assigned.
    - Existing ghost → preserve its `key`, `status`, and `note`; refresh `cited_by` and enriched fields.
-   - **Promotion:** if a ghost now matches a paper newly held after this sync's Phase 3, remove it from `refs.yaml` (it has graduated) and add the held papers in its former `cited_by` as inbound `relations:` on the promoted paper's `index.yaml` entry.
+   - **Promotion:** if a ghost now matches a paper newly held after this sync's Phase 3, remove it from `refs.yaml` (it has graduated). Its former `cited_by` are the held papers that cite it; converting those into real held→held `relations:` edges is **deferred** (the relations-backfill follow-up), because each such edge is outbound `{to: <promoted-slug>}` on the *citer's* own entry — not on the promoted paper's — and the relation `type` enum has no bare-citation type. Until backfill ships, promotion graduates the paper and drops the ghost only.
 7. **Enrich (best-effort, above-threshold ghosts only):** verify metadata via Crossref/arXiv exactly as Phase 1 does, filling `venue`/`ids`. Offline or no confident match → leave best-effort `title`/`year` with `ids: null`; retried on later syncs.
-8. **Write `refs.yaml`** (schema below) and render the ghost surfaces in `LANDSCAPE.md` per Phase 4.
+8. **Write `refs.yaml`** (schema below), then render the ghost surfaces into `LANDSCAPE.md` (Phase 5 owns these; Phase 4 has already written the held content):
+   - **Promotion-candidate table** — a section **Ghost papers — referenced but not held (promotion candidates)**: a table sorted by pull (`count = len(cited_by)`) descending — `| ghost | year | pull | status | cited by | why |`. The `status` column shows `candidate` or `pinned` (pinned singletons are intentional, so they read correctly at `pull 1`). This is the promotion shortlist; the ghosts whose absence most weakens the corpus sit at the top.
+   - **Ghost nodes in the Mermaid graph** — draw only the top ~8 ghosts by pull to keep the graph readable (the table lists ALL ghosts). Each drawn ghost gets a hyphen-free node id `ghost_<key>` (hyphens in `<key>` → underscores), styled distinctly (dashed border, dimmed) via a `classDef ghost`, with edges labeled `references` from up to 3 of its citing held papers.
 
 Curation verdicts persist across syncs: a ghost the user dismisses is recorded `status: rejected` with a `note` and never re-surfaces; a foundational singleton the agent keeps is `status: pinned` with a `note` reason.
 
@@ -112,7 +113,7 @@ Every relation edge carries a one-line `why` justification grounded in the paper
   note: null                               # required reason when pinned or rejected
 ```
 
-`count = len(cited_by)`, always derived — never hand-authored. Only held papers contribute to `cited_by`. Ghosts are cited in prose as `⟨ghost:key⟩` and never ground a claim about their own content.
+`count = len(cited_by)`, always derived — never hand-authored. Only held papers contribute to `cited_by`. Ghosts are cited in prose as `⟨ghost:key⟩` and never ground a claim about their own content. The `why`, and any enriched `title`/`venue`/`ids`, are identity and decision-support only — they never ground a content claim about the ghost (that answer is always "not in your papers (referenced only)").
 
 ## Card template — notes/<slug>.md
 

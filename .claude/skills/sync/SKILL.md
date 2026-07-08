@@ -30,7 +30,7 @@ Present one plan table to the user:
 |---|---|---|---|
 | `2301.04567v2.pdf` | rename | `papers/2023-smith-contrastive-distillation.pdf` | new paper |
 | `smith_preprint.pdf` | move | `_duplicates/smith_preprint.pdf` | duplicate of 2023-smith-… (arXiv id match) |
-| `Wu_RPLAN_2019.pdf` | rename + promote | `papers/2019-wu-rplan.pdf` | promotes ⟨ghost:2019-wu-rplan⟩ → held paper |
+| `Lee_Benchmark_2019.pdf` | rename + promote | `papers/2019-lee-foundational-benchmark.pdf` | promotes ⟨ghost:2019-lee-foundational-benchmark⟩ → held paper |
 
 Include uncertain dedupe cases as explicit questions. If a new PDF matches an existing ghost in `refs.yaml` (shared DOI/arXiv, or fuzzy title + first-author), present it as a **promotion**: on approval it is ingested as a normal held paper, and Phase 5 then removes its former ghost entry from `refs.yaml`. **Wait for approval. Do not touch files before it.**
 
@@ -101,14 +101,14 @@ Every relation edge carries a one-line `why` justification grounded in the paper
 `refs.yaml` is machine truth for ghosts — referenced but NOT held, non-grounded, never citable on their own. Gitignored like `index.yaml`.
 
 ```yaml
-- key: 2019-wu-rplan                       # YYYY-firstauthor-short-title (slug-shaped); frozen once assigned
-  title: "Data-driven Interior Plan Generation for Residential Buildings"
-  authors: ["Wu, Wenming"]
+- key: 2019-lee-foundational-benchmark     # YYYY-firstauthor-short-title (slug-shaped); frozen once assigned
+  title: "A Large-Scale Benchmark for Representation Learning"
+  authors: ["Lee, Kim"]
   year: 2019
   venue: null                              # best-effort via Crossref/arXiv enrichment
   ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (above-threshold ghosts only)
-  cited_by: [2022-shabani-housediffusion-vector-floorplan, 2025-hu-gsdiff-structural-graph-floorplan-diffusion]
-  why: "RPLAN — the benchmark dataset much of the corpus trains on"
+  cited_by: [2023-smith-contrastive-distillation, 2021-doe-simclr-v3]
+  why: "the benchmark dataset much of the corpus trains and evaluates on"
   status: candidate                        # candidate (≥2 citers) | pinned (foundational singleton) | rejected
   note: null                               # required reason when pinned or rejected
 ```

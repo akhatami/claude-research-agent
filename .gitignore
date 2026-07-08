@@ -8,5 +8,6 @@ _duplicates/*
 !notes/.gitkeep
 !_duplicates/.gitkeep
 index.yaml
+refs.yaml
 INDEX.md
 LANDSCAPE.md

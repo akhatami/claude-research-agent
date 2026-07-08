@@ -144,7 +144,7 @@ git commit -m "feat: CLAUDE.md — ghost firewall (route-not-ground, ⟨ghost:ke
 
 **Interfaces:**
 - Consumes: the `⟨ghost:key⟩` marker and firewall rules from Task 2; `refs.yaml` ignored in Task 1; held `text/<slug>.md` bibliographies.
-- Produces: the harvest procedure and `refs.yaml` schema that Task 5 exercises. Field names other tasks rely on: `key`, `title`, `authors`, `year`, `ids`, `cited_by` (list of held slugs), `why`, `status` (`candidate|pinned|rejected`), `note`. Ghost Mermaid node id convention: `ghost_<key>`.
+- Produces: the harvest procedure and `refs.yaml` schema that Task 5 exercises. Field names other tasks rely on: `key`, `title`, `authors`, `year`, `venue`, `ids`, `cited_by` (list of held slugs), `why`, `status` (`candidate|pinned|rejected`), `note`. Ghost Mermaid node id convention: `ghost_<key>`.
 
 - [ ] **Step 1: Advertise ghost harvesting in the skill description (frontmatter)**
 
@@ -249,6 +249,7 @@ Use Edit on `.claude/skills/sync/SKILL.md`. Anchor on the card-template heading 
   title: "Data-driven Interior Plan Generation for Residential Buildings"
   authors: ["Wu, Wenming"]
   year: 2019
+  venue: null                              # best-effort via Crossref/arXiv enrichment
   ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (above-threshold ghosts only)
   cited_by: [2022-shabani-housediffusion-vector-floorplan, 2025-hu-gsdiff-structural-graph-floorplan-diffusion]
   why: "RPLAN — the benchmark dataset much of the corpus trains on"

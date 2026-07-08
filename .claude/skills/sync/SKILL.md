@@ -104,6 +104,7 @@ Every relation edge carries a one-line `why` justification grounded in the paper
   title: "Data-driven Interior Plan Generation for Residential Buildings"
   authors: ["Wu, Wenming"]
   year: 2019
+  venue: null                              # best-effort via Crossref/arXiv enrichment
   ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (above-threshold ghosts only)
   cited_by: [2022-shabani-housediffusion-vector-floorplan, 2025-hu-gsdiff-structural-graph-floorplan-diffusion]
   why: "RPLAN — the benchmark dataset much of the corpus trains on"

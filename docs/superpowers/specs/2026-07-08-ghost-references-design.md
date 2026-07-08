@@ -48,6 +48,7 @@ New file, sibling to `index.yaml`, gitignored the same way (it is corpus-derived
   title: "Data-driven Interior Plan Generation for Residential Buildings"
   authors: ["Wu, Wenming", "..."]
   year: 2019
+  venue: null                              # best-effort via Crossref/arXiv enrichment
   ids: {doi: null, arxiv: null}            # best-effort, filled via existing Crossref/arXiv verify
   cited_by: [2022-shabani-housediffusion-vector-floorplan,
              2025-hu-gsdiff-structural-graph-floorplan-diffusion,

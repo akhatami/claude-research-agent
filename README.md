@@ -33,4 +33,4 @@ Your PDFs and everything derived from them (`papers/`, `text/`, `notes/`, `_dupl
 - Files are renamed exactly once, at ingestion, after your approval.
 - Answers cite papers verifiably or explicitly say the corpus doesn't cover the question.
 
-**Not in v1 (tracked):** OCR for scanned PDFs (they're flagged `needs-ocr`), BibTeX export, Zotero sync, interactive graph. Design docs live in `docs/superpowers/specs/`.
+**Not in v1 (tracked):** OCR for scanned PDFs (they're flagged `needs-ocr`), BibTeX export, Zotero sync, interactive graph, relations backfill (held→held citations discovered during ghost harvest), relevance filtering of generic-ML ghosts (the reject flow is the v1 answer). Design docs live in `docs/superpowers/specs/`.

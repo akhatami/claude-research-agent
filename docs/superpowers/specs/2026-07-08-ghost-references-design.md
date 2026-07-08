@@ -90,7 +90,7 @@ Bibliographies from `needs-ocr` papers may be garbled; references sourced only f
 
 - **`LANDSCAPE.md`** gains a **"Ghost papers — referenced but not held (promotion candidates)"** section: a table sorted by pull (count) descending —
   `| ghost | year | pull | cited by | why |`. Read top-down = the promotion shortlist; the ghosts whose absence most weakens the corpus sit at the top.
-- **Mermaid graph:** ghost nodes rendered in a distinct style (dashed border / dimmed) so they are visibly the map's *inbound roads*, clearly separated from held nodes.
+- **Mermaid graph:** ghost nodes rendered in a distinct style (dashed border / dimmed) so they are visibly the map's *inbound roads*, clearly separated from held nodes. Only the top ~8 ghosts by pull are drawn (with up to 3 `references` edges each) to keep the graph readable — the table lists all ghosts; node ids sanitize hyphens to underscores for Mermaid.
 - **`INDEX.md`:** unchanged — stays **held-papers-only**. It is the citable overview table; keeping ghosts out of it preserves the firewall. (Ghosts live only in the map, `LANDSCAPE.md`.)
 
 ## Lifecycle

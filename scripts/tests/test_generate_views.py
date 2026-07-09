@@ -1,5 +1,7 @@
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -116,6 +118,63 @@ class RegionTests(unittest.TestCase):
         text = "<!-- BEGIN GENERATED:graph -->\nno end marker\n"
         with self.assertRaises(gv.DataError):
             gv.replace_region(text, "graph", "X")
+
+
+class IntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        shutil.copy(fixture("index.yaml"), os.path.join(self.tmp, "index.yaml"))
+        shutil.copy(fixture("refs.yaml"), os.path.join(self.tmp, "refs.yaml"))
+
+    def _seed_landscape(self, with_ghosts_fence=True):
+        parts = [
+            "# Corpus landscape\n\n## The story of this corpus\n\n",
+            "Two papers form a contrastive-learning cluster.\n\n",
+            "<!-- BEGIN GENERATED:graph -->\nstale\n<!-- END GENERATED:graph -->\n\n",
+        ]
+        if with_ghosts_fence:
+            parts.append("<!-- BEGIN GENERATED:ghosts -->\nstale\n<!-- END GENERATED:ghosts -->\n")
+        with open(os.path.join(self.tmp, "LANDSCAPE.md"), "w", encoding="utf-8") as f:
+            f.write("".join(parts))
+
+    def test_generate_writes_index_and_regions(self):
+        self._seed_landscape()
+        warnings = gv.generate(self.tmp)
+        self.assertEqual(warnings, [])
+        with open(fixture("expected_INDEX.md"), encoding="utf-8") as f:
+            self.assertEqual(open(os.path.join(self.tmp, "INDEX.md"), encoding="utf-8").read(), f.read())
+        land = open(os.path.join(self.tmp, "LANDSCAPE.md"), encoding="utf-8").read()
+        self.assertIn("Two papers form a contrastive-learning cluster.", land)
+        self.assertIn("graph TD", land)
+        self.assertIn("2019-lee-benchmark", land)
+        self.assertNotIn("stale", land)
+
+    def test_generate_is_idempotent(self):
+        self._seed_landscape()
+        gv.generate(self.tmp)
+        first_index = open(os.path.join(self.tmp, "INDEX.md"), encoding="utf-8").read()
+        first_land = open(os.path.join(self.tmp, "LANDSCAPE.md"), encoding="utf-8").read()
+        gv.generate(self.tmp)
+        self.assertEqual(open(os.path.join(self.tmp, "INDEX.md"), encoding="utf-8").read(), first_index)
+        self.assertEqual(open(os.path.join(self.tmp, "LANDSCAPE.md"), encoding="utf-8").read(), first_land)
+
+    def test_missing_ghosts_fence_self_heals(self):
+        self._seed_landscape(with_ghosts_fence=False)
+        warnings = gv.generate(self.tmp)
+        self.assertEqual(warnings, ["ghosts"])
+
+    def test_malformed_yaml_writes_nothing(self):
+        # Unterminated double-quoted scalar → a real YAML parse error → DataError.
+        with open(os.path.join(self.tmp, "index.yaml"), "w", encoding="utf-8") as f:
+            f.write('- slug: x\n  title: "unterminated\n')
+        self._seed_landscape()
+        rc = gv.main(["generate_views.py", self.tmp])
+        self.assertEqual(rc, 1)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "INDEX.md")))
+
+    def test_main_usage_error(self):
+        self.assertEqual(gv.main(["generate_views.py"]), 2)
 
 
 if __name__ == "__main__":

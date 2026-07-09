@@ -173,3 +173,76 @@ def render_graph(entries, selected_ghosts):
 
     lines.append("```")
     return "\n".join(lines)
+
+
+LANDSCAPE_SKELETON = (
+    "# Corpus landscape\n\n"
+    "<!-- The narrative below is authored by the assistant; the fenced\n"
+    "     regions are generated — do not edit them by hand. -->\n\n"
+    "## The story of this corpus\n\n"
+    "_(narrative pending — the assistant writes this)_\n\n"
+    "<!-- BEGIN GENERATED:graph -->\n<!-- END GENERATED:graph -->\n\n"
+    "<!-- BEGIN GENERATED:ghosts -->\n<!-- END GENERATED:ghosts -->\n"
+)
+
+
+def generate(corpus_dir):
+    index_path = os.path.join(corpus_dir, "index.yaml")
+    refs_path = os.path.join(corpus_dir, "refs.yaml")
+    landscape_path = os.path.join(corpus_dir, "LANDSCAPE.md")
+    index_out = os.path.join(corpus_dir, "INDEX.md")
+
+    entries = load_yaml(index_path, default=[]) or []
+    validate_entries(entries)
+    ghosts = load_yaml(refs_path, default=[]) or []
+    validate_ghosts(ghosts)
+    selected = select_ghosts(ghosts)
+
+    # Render everything BEFORE writing anything (fail-closed).
+    index_md = render_index(entries)
+    graph_md = render_graph(entries, selected)
+    ghosts_md = render_ghost_table(selected)
+
+    if os.path.exists(landscape_path):
+        with open(landscape_path, encoding="utf-8") as f:
+            land = f.read()
+    else:
+        land = LANDSCAPE_SKELETON
+
+    warnings = []
+    land, app_graph = replace_region(land, "graph", graph_md)
+    if app_graph:
+        warnings.append("graph")
+    land, app_ghosts = replace_region(land, "ghosts", ghosts_md)
+    if app_ghosts:
+        warnings.append("ghosts")
+
+    with open(index_out, "w", encoding="utf-8") as f:
+        f.write(index_md)
+    with open(landscape_path, "w", encoding="utf-8") as f:
+        f.write(land)
+    return warnings
+
+
+def main(argv):
+    if len(argv) != 2:
+        print("usage: generate_views.py <corpus-dir>", file=sys.stderr)
+        return 2
+    corpus_dir = argv[1]
+    if not os.path.isdir(corpus_dir):
+        print("error: not a directory: %s" % corpus_dir, file=sys.stderr)
+        return 2
+    try:
+        warnings = generate(corpus_dir)
+    except (DependencyError, DataError) as exc:
+        print("error: %s" % exc, file=sys.stderr)
+        return 1
+    for name in warnings:
+        print("warning: appended missing generated region '%s' to LANDSCAPE.md" % name,
+              file=sys.stderr)
+    print("generated INDEX.md and LANDSCAPE.md regions for %s" % corpus_dir)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

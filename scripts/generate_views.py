@@ -117,3 +117,46 @@ def render_index(entries):
             escape_cell(e.get("status") or "ok"),
         ))
     return "\n".join(lines) + "\n"
+
+
+GHOST_GRAPH_LIMIT = 8
+
+
+def node_id(slug):
+    return "n_" + slug.replace("-", "_")
+
+
+def ghost_node_id(key):
+    return "ghost_" + key.replace("-", "_")
+
+
+def render_graph(entries, selected_ghosts):
+    held_slugs = {e["slug"] for e in entries}
+    lines = ["```mermaid", "graph TD"]
+
+    for e in sorted(entries, key=lambda e: e["slug"]):
+        lines.append('    %s["%s"]' % (node_id(e["slug"]), e["slug"]))
+
+    edges = []
+    for e in entries:
+        for rel in (e.get("relations") or []):
+            to = rel.get("to")
+            if to in held_slugs:
+                edges.append((e["slug"], to, rel.get("type") or ""))
+    for frm, to, typ in sorted(edges):
+        lines.append("    %s -->|%s| %s" % (node_id(frm), typ, node_id(to)))
+
+    drawn = sorted(selected_ghosts[:GHOST_GRAPH_LIMIT], key=lambda g: g["key"])
+    for g in drawn:
+        lines.append('    %s["⟨ghost⟩ %s"]' % (ghost_node_id(g["key"]), g["key"]))
+    for g in drawn:
+        citers = [c for c in sorted(g.get("cited_by") or []) if c in held_slugs][:3]
+        for c in citers:
+            lines.append("    %s -. references .-> %s" % (node_id(c), ghost_node_id(g["key"])))
+    if drawn:
+        lines.append("    classDef ghost stroke-dasharray:5 5,opacity:0.55;")
+        ids = ",".join(ghost_node_id(g["key"]) for g in drawn)
+        lines.append("    class %s ghost;" % ids)
+
+    lines.append("```")
+    return "\n".join(lines)

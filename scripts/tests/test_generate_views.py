@@ -70,5 +70,23 @@ class GhostTests(unittest.TestCase):
         self.assertEqual(gv.render_ghost_table([]), "No ghost papers yet.")
 
 
+class GraphTests(unittest.TestCase):
+    def test_render_graph_matches_golden(self):
+        entries = gv.load_yaml(fixture("index.yaml"), default=[])
+        ghosts = gv.select_ghosts(gv.load_yaml(fixture("refs.yaml"), default=[]))
+        with open(fixture("expected_graph.md"), encoding="utf-8") as f:
+            expected = f.read().rstrip("\n")
+        self.assertEqual(gv.render_graph(entries, ghosts), expected)
+
+    def test_node_ids_are_hyphen_free(self):
+        self.assertEqual(gv.node_id("2021-doe-simclr"), "n_2021_doe_simclr")
+        self.assertEqual(gv.ghost_node_id("2019-lee-benchmark"), "ghost_2019_lee_benchmark")
+
+    def test_graph_without_ghosts_has_no_classdef(self):
+        entries = gv.load_yaml(fixture("index.yaml"), default=[])
+        out = gv.render_graph(entries, [])
+        self.assertNotIn("classDef ghost", out)
+
+
 if __name__ == "__main__":
     unittest.main()

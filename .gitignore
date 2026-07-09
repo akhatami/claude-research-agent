@@ -1,13 +1,4 @@
 # Corpus-derived content stays local — this repo is a replicable template.
-papers/*
-text/*
-notes/*
-_duplicates/*
-!papers/.gitkeep
-!text/.gitkeep
-!notes/.gitkeep
-!_duplicates/.gitkeep
-index.yaml
-refs.yaml
-INDEX.md
-LANDSCAPE.md
+corpora/*
+!corpora/.gitkeep
+.active-corpus

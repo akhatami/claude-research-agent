@@ -4,11 +4,13 @@ A replicable [Claude Code](https://claude.com/claude-code) workspace that turns 
 
 You have a folder of papers. You half-remember one of them reported the number you need — but not which, and grep over PDFs is useless. This workspace reads your papers once, organizes them, and then answers questions grounded in their actual text, with citations you can check.
 
+Papers are organized into **corpora** — one folder per research area under `corpora/`. Each session opens a single corpus; organizing, answering, and mapping are all scoped to it.
+
 ## What it does
 
 1. **Organizes:** dedupes, renames each paper once to a stable `YYYY-firstauthor-short-title` slug, extracts a text cache, writes a structured card per paper, and maintains `index.yaml` (the source of truth) → generated `INDEX.md` (overview table) and `LANDSCAPE.md` (the story of your corpus + a Mermaid relation graph).
 2. **Answers questions grounded in YOUR papers,** with checkable citations (`[slug, §5.2]` + direct quotes), starting broad and drilling into fewer papers as you go deeper. If your papers don't cover it, it says so.
-3. **Maps the neighborhood:** surfaces papers your held papers cite but you don't have yet as *ghosts* — ranked by how many of your papers reference each one, a ready-made shortlist of what to add next. Ghosts enrich the map but are never cited as grounding. Drop a ghost's PDF into `papers/` and the next sync promotes it to a full paper.
+3. **Maps the neighborhood:** surfaces papers your held papers cite but you don't have yet as *ghosts* — ranked by how many of your papers reference each one, a ready-made shortlist of what to add next. Ghosts enrich the map but are never cited as grounding. Drop a ghost's PDF into the corpus's `papers/` and the next sync promotes it to a full paper.
 
 ## What it looks like
 
@@ -47,17 +49,18 @@ Click **"Use this template"** on GitHub to get your own copy (recommended), then
 
 ```bash
 git clone https://github.com/<you>/<your-repo>.git my-research && cd my-research
-cp ~/Downloads/*.pdf papers/
+mkdir -p corpora/my-topic/papers
+cp ~/Downloads/*.pdf corpora/my-topic/papers/
 claude
 ```
 
 Or clone this repo directly to try it: `git clone https://github.com/akhatami/claude-research-agent.git`.
 
-On session start, a hook detects the new PDFs and offers to ingest them via the **`/sync`** skill. `/sync` shows you a dry-run plan (renames + duplicate verdicts) for approval before touching any file, then extracts text, writes cards, and builds the index. After that, just ask questions.
+Each research area is its own folder under `corpora/`. On session start, Claude lists your corpora and asks which one to open — a session works on exactly one. Run **`/sync`** to ingest: it shows a dry-run plan (renames + duplicate verdicts) for approval before touching any file, then extracts text, writes cards, and builds that corpus's index. After that, just ask questions — every answer is grounded in the open corpus.
 
 ## What stays local
 
-Your PDFs and everything derived from them (`papers/`, `text/`, `notes/`, `_duplicates/`, `index.yaml`, `refs.yaml`, `INDEX.md`, `LANDSCAPE.md`) are gitignored. The repo carries only the machinery, so it can be reused on any set of papers.
+Everything under `corpora/` — each corpus's `papers/`, `text/`, `notes/`, `_duplicates/`, `index.yaml`, `refs.yaml`, `INDEX.md`, `LANDSCAPE.md` — plus the `.active-corpus` marker is gitignored. The repo carries only the machinery, so it can be reused for any number of paper sets.
 
 ## Guarantees
 
@@ -71,8 +74,10 @@ Your PDFs and everything derived from them (`papers/`, `text/`, `notes/`, `_dupl
 - BibTeX export, Zotero sync, interactive graph.
 - Relations backfill — held→held citations discovered during ghost harvest becoming real graph edges.
 - Relevance filtering of generic-ML ghosts — the `reject` flow is the v1 answer.
+- Conversation capture — auto-saved, read-only Q&A transcripts per corpus (write-only: never re-loaded into context).
+- Python offload for deterministic work (view + ghost-count generation) to cut token cost.
 
-Design docs live in `docs/superpowers/specs/`.
+Design docs live in `docs/superpowers/specs/`; early/undesigned ideas in `docs/superpowers/ideas/`.
 
 ## License
 

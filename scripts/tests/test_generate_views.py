@@ -50,5 +50,25 @@ class RenderIndexTests(unittest.TestCase):
         self.assertEqual(gv.escape_cell("a|b"), "a\\|b")
 
 
+class GhostTests(unittest.TestCase):
+    def setUp(self):
+        self.ghosts = gv.load_yaml(fixture("refs.yaml"), default=[])
+
+    def test_select_applies_threshold_and_status(self):
+        keys = [g["key"] for g in gv.select_ghosts(self.ghosts)]
+        # 2019-lee (pull 2) kept; 2018-kim (pinned singleton) kept;
+        # 2015-old-singleton (pull 1, candidate) dropped; 2017-generic-ml (rejected) dropped.
+        self.assertEqual(keys, ["2019-lee-benchmark", "2018-kim-foundational"])
+
+    def test_render_ghost_table_matches_golden(self):
+        selected = gv.select_ghosts(self.ghosts)
+        with open(fixture("expected_ghosts.md"), encoding="utf-8") as f:
+            expected = f.read().rstrip("\n")
+        self.assertEqual(gv.render_ghost_table(selected), expected)
+
+    def test_empty_ghosts_message(self):
+        self.assertEqual(gv.render_ghost_table([]), "No ghost papers yet.")
+
+
 if __name__ == "__main__":
     unittest.main()

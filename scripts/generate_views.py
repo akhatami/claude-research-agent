@@ -51,9 +51,45 @@ def validate_ghosts(ghosts):
 
 INDEX_BANNER = "<!-- Generated from index.yaml — do not edit by hand. -->"
 
+GHOST_HEADING = "## Ghost papers — referenced but not held (promotion candidates)"
+
 
 def escape_cell(value):
     return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def pull(ghost):
+    return len(ghost.get("cited_by") or [])
+
+
+def select_ghosts(ghosts):
+    kept = [
+        g for g in ghosts
+        if g.get("status") != "rejected" and (pull(g) >= 2 or g.get("status") == "pinned")
+    ]
+    return sorted(kept, key=lambda g: (-pull(g), g["key"]))
+
+
+def render_ghost_table(selected):
+    if not selected:
+        return "No ghost papers yet."
+    lines = [
+        GHOST_HEADING,
+        "",
+        "| ghost | year | pull | status | cited by | why |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for g in selected:
+        cited = ", ".join(sorted(g.get("cited_by") or []))
+        lines.append("| %s | %s | %d | %s | %s | %s |" % (
+            escape_cell(g["key"]),
+            escape_cell(g.get("year") or ""),
+            pull(g),
+            escape_cell(g.get("status") or "candidate"),
+            escape_cell(cited),
+            escape_cell(g.get("why") or ""),
+        ))
+    return "\n".join(lines)
 
 
 def fmt_tags(tags):

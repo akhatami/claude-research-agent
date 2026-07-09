@@ -88,5 +88,35 @@ class GraphTests(unittest.TestCase):
         self.assertNotIn("classDef ghost", out)
 
 
+class RegionTests(unittest.TestCase):
+    def test_replace_existing_region_preserves_surroundings(self):
+        text = (
+            "# Title\n\nNarrative stays.\n\n"
+            "<!-- BEGIN GENERATED:graph -->\nold\n<!-- END GENERATED:graph -->\n\nAfter.\n"
+        )
+        out, appended = gv.replace_region(text, "graph", "NEW")
+        self.assertFalse(appended)
+        self.assertIn("Narrative stays.", out)
+        self.assertIn("After.", out)
+        self.assertIn(
+            "<!-- BEGIN GENERATED:graph -->\nNEW\n<!-- END GENERATED:graph -->", out
+        )
+        self.assertNotIn("old", out)
+
+    def test_missing_region_is_appended_and_flagged(self):
+        text = "# Title\n\nNarrative only.\n"
+        out, appended = gv.replace_region(text, "ghosts", "TBL")
+        self.assertTrue(appended)
+        self.assertIn("Narrative only.", out)
+        self.assertIn(
+            "<!-- BEGIN GENERATED:ghosts -->\nTBL\n<!-- END GENERATED:ghosts -->", out
+        )
+
+    def test_unterminated_region_raises(self):
+        text = "<!-- BEGIN GENERATED:graph -->\nno end marker\n"
+        with self.assertRaises(gv.DataError):
+            gv.replace_region(text, "graph", "X")
+
+
 if __name__ == "__main__":
     unittest.main()

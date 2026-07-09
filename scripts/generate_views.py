@@ -119,6 +119,19 @@ def render_index(entries):
     return "\n".join(lines) + "\n"
 
 
+def replace_region(text, name, content):
+    begin = "<!-- BEGIN GENERATED:%s -->" % name
+    end = "<!-- END GENERATED:%s -->" % name
+    block = "%s\n%s\n%s" % (begin, content, end)
+    start = text.find(begin)
+    if start == -1:
+        return text.rstrip("\n") + "\n\n" + block + "\n", True
+    stop = text.find(end, start)
+    if stop == -1:
+        raise DataError("LANDSCAPE.md: region '%s' has BEGIN but no END marker" % name)
+    return text[:start] + block + text[stop + len(end):], False
+
+
 GHOST_GRAPH_LIMIT = 8
 
 

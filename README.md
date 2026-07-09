@@ -31,11 +31,14 @@ The corpus map (`LANDSCAPE.md`) renders held papers solid and ghosts dashed:
 
 ```mermaid
 graph TD
-    smith["2023-smith-contrastive-distillation"] -->|builds-on| doe["2021-doe-simclr-v3"]
-    smith -. references .-> lee["⟨ghost⟩ 2019-lee-benchmark"]
-    doe -. references .-> lee
+    n_2021_doe_simclr_v3["2021-doe-simclr-v3"]
+    n_2023_smith_contrastive_distillation["2023-smith-contrastive-distillation"]
+    n_2023_smith_contrastive_distillation -->|builds-on| n_2021_doe_simclr_v3
+    ghost_2019_lee_benchmark["⟨ghost⟩ 2019-lee-benchmark"]
+    n_2021_doe_simclr_v3 -. references .-> ghost_2019_lee_benchmark
+    n_2023_smith_contrastive_distillation -. references .-> ghost_2019_lee_benchmark
     classDef ghost stroke-dasharray:5 5,opacity:0.55;
-    class lee ghost;
+    class ghost_2019_lee_benchmark ghost;
 ```
 
 ## Requirements

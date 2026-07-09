@@ -1,0 +1,17 @@
+# Stress fixture: exercises the graph's edge filters and node cap.
+# 4 held papers; one relation points at a non-held slug (must be dropped).
+- slug: 2022-alpha
+  title: Alpha Paper
+  year: 2022
+  relations:
+    - {to: 2021-beta, type: builds-on}     # held target → edge kept
+    - {to: 3000-phantom, type: cites}      # non-held target → edge dropped
+- slug: 2021-beta
+  title: Beta Paper
+  year: 2021
+- slug: 2020-gamma
+  title: Gamma Paper
+  year: 2020
+- slug: 2019-delta
+  title: Delta Paper
+  year: 2019

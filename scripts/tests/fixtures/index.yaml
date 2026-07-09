@@ -1,0 +1,23 @@
+- slug: 2023-smith-contrastive-distillation
+  title: "Contrastive Distillation for Dense Retrieval"
+  year: 2023
+  venue: "NeurIPS 2023"
+  tags: [contrastive-learning, distillation]
+  summary: "Adds a distillation term on top of a contrastive objective."
+  status: ok
+  relations:
+    - {to: 2021-doe-simclr, type: builds-on, why: "extends its objective"}
+- slug: 2021-doe-simclr
+  title: "SimCLR: A Simple Framework for Contrastive Learning"
+  year: 2021
+  venue: "ICML 2021"
+  tags: [contrastive-learning]
+  summary: "The base contrastive method (NT-Xent loss)."
+  status: ok
+- slug: 2020-ng-scanned-survey
+  title: "A Survey of Scanned Representation Methods"
+  year: 2020
+  venue: "arXiv 2020"
+  tags: [survey]
+  summary: "Broad survey; scanned source."
+  status: needs-ocr

@@ -8,7 +8,7 @@ Papers are organized into **corpora** — one folder per research area under `co
 
 ## What it does
 
-1. **Organizes:** dedupes, renames each paper once to a stable `YYYY-firstauthor-short-title` slug, extracts a text cache, writes a structured card per paper, and maintains `index.yaml` (the source of truth) → generated `INDEX.md` (overview table) and `LANDSCAPE.md` (the story of your corpus + a Mermaid relation graph).
+1. **Organizes:** dedupes, renames each paper once to a stable `YYYY-firstauthor-short-title` slug, extracts a text cache, writes a structured card per paper, and maintains `index.yaml` (the source of truth) → a generated `INDEX.md` (overview table) and `LANDSCAPE.md`, whose corpus story is assistant-written and whose Mermaid relation graph is script-generated.
 2. **Answers questions grounded in YOUR papers,** with checkable citations (`[slug, §5.2]` + direct quotes), starting broad and drilling into fewer papers as you go deeper. If your papers don't cover it, it says so.
 3. **Maps the neighborhood:** surfaces papers your held papers cite but you don't have yet as *ghosts* — ranked by how many of your papers reference each one, a ready-made shortlist of what to add next. Ghosts enrich the map but are never cited as grounding. Drop a ghost's PDF into the corpus's `papers/` and the next sync promotes it to a full paper.
 
@@ -31,17 +31,21 @@ The corpus map (`LANDSCAPE.md`) renders held papers solid and ghosts dashed:
 
 ```mermaid
 graph TD
-    smith["2023-smith-contrastive-distillation"] -->|builds-on| doe["2021-doe-simclr-v3"]
-    smith -. references .-> lee["⟨ghost⟩ 2019-lee-benchmark"]
-    doe -. references .-> lee
+    n_2021_doe_simclr_v3["2021-doe-simclr-v3"]
+    n_2023_smith_contrastive_distillation["2023-smith-contrastive-distillation"]
+    n_2023_smith_contrastive_distillation -->|builds-on| n_2021_doe_simclr_v3
+    ghost_2019_lee_benchmark["⟨ghost⟩ 2019-lee-benchmark"]
+    n_2021_doe_simclr_v3 -. references .-> ghost_2019_lee_benchmark
+    n_2023_smith_contrastive_distillation -. references .-> ghost_2019_lee_benchmark
     classDef ghost stroke-dasharray:5 5,opacity:0.55;
-    class lee ghost;
+    class ghost_2019_lee_benchmark ghost;
 ```
 
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code)
 - `pdftotext` from poppler: `brew install poppler` (macOS) / `apt install poppler-utils` (Linux)
+- `python3` + PyYAML (`pip install pyyaml`) — used at ingestion to generate the corpus views. Asking questions needs neither.
 
 ## Quickstart
 
@@ -75,7 +79,7 @@ Everything under `corpora/` — each corpus's `papers/`, `text/`, `notes/`, `_du
 - Relations backfill — held→held citations discovered during ghost harvest becoming real graph edges.
 - Relevance filtering of generic-ML ghosts — the `reject` flow is the v1 answer.
 - Conversation capture — auto-saved, read-only Q&A transcripts per corpus (write-only: never re-loaded into context).
-- Python offload for deterministic work (view + ghost-count generation) to cut token cost.
+- Python offload for *reference/metadata parsing* (GROBID) — the heavier accuracy escalation; the view + ghost-count generator has shipped.
 
 Design docs live in `docs/superpowers/specs/`; early/undesigned ideas in `docs/superpowers/ideas/`.
 

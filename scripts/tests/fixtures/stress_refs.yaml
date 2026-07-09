@@ -1,0 +1,25 @@
+# Stress fixture: 10 selectable ghosts (all pull >= 2) so the top-8 graph cap
+# fires. Ordered by pull desc, key asc: aaa-cap4 (4), aab-nonheld (3), then
+# f01..f08 (2 each). Graph draws the first 8 → f07 and f08 are excluded.
+- key: 2010-aaa-cap4
+  # pull 4: cited by all 4 held papers → reference edges capped at 3 by slug order.
+  cited_by: [2022-alpha, 2021-beta, 2020-gamma, 2019-delta]
+- key: 2010-aab-nonheld
+  # pull 3: two held citers drawn; the non-held citer is dropped from the graph.
+  cited_by: [2022-alpha, 2021-beta, ext-outsider]
+- key: 2010-f01
+  cited_by: [ext-01, ext-02]
+- key: 2010-f02
+  cited_by: [ext-01, ext-02]
+- key: 2010-f03
+  cited_by: [ext-01, ext-02]
+- key: 2010-f04
+  cited_by: [ext-01, ext-02]
+- key: 2010-f05
+  cited_by: [ext-01, ext-02]
+- key: 2010-f06
+  cited_by: [ext-01, ext-02]
+- key: 2010-f07
+  cited_by: [ext-01, ext-02]
+- key: 2010-f08
+  cited_by: [ext-01, ext-02]

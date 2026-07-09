@@ -47,33 +47,61 @@ Per approved row:
 3. Write the card to `C/notes/<slug>.md` (template below).
 4. Append the entry to `C/index.yaml` (schema below).
 
-## Phase 4 — Regenerate
+## Phase 4 — Regenerate (narrative only)
 
-1. **`C/INDEX.md`** — generated table over all `C/index.yaml` entries (held papers only — ghosts never appear here), sorted by year desc: `| slug | title | year | venue | tags | one-line summary | status |`. Header note: "Generated from index.yaml — do not edit by hand."
-2. **`C/LANDSCAPE.md`** (held content) — the corpus story, regenerated from `C/index.yaml` + cards. Held papers only here; the ghost surfaces are added afterward by Phase 5 (which owns `C/refs.yaml`):
-   - Thematic clusters (from tags/relations): what each cluster is trying to solve, which papers belong, how clusters connect, and where the open tensions/gaps are. Narrative prose, not bullets-only.
-   - A Mermaid `graph TD` of relations over HELD papers only: nodes use short hyphen-free aliases (the slug or title in the node label), edges labeled with the relation type. Keep node ids hyphen-free for Mermaid compatibility. Ghost nodes are added by Phase 5 — do not draw them here. Same generated-file header note.
-3. Report orphans and any `needs-ocr` / `metadata-unverified` statuses in the final summary to the user.
+The mechanical views are no longer hand-written here — they are produced by `scripts/generate_views.py` in Phase 6. Phase 4 is now judgment-only:
+
+1. **`C/LANDSCAPE.md` narrative.** Author (or update) the narrative region only: the corpus story — thematic clusters (from tags/relations), what each cluster solves, how clusters connect, where the open tensions/gaps are. Narrative prose, not bullets-only. Do NOT hand-write the Mermaid graph or the ghost table; those are generated fenced regions Phase 6 fills.
+   - **First sync of a corpus:** create `C/LANDSCAPE.md` from this skeleton (the generator will fill the fences in Phase 6):
+
+     ```markdown
+     # Corpus landscape
+
+     <!-- The narrative below is authored by the assistant; the fenced
+          regions are generated — do not edit them by hand. -->
+
+     ## The story of this corpus
+
+     <narrative>
+
+     <!-- BEGIN GENERATED:graph -->
+     <!-- END GENERATED:graph -->
+
+     <!-- BEGIN GENERATED:ghosts -->
+     <!-- END GENERATED:ghosts -->
+     ```
+   - **Migrating an existing corpus (one-time):** if `C/LANDSCAPE.md` still has an un-fenced hand-written graph and ghost table, delete those two blocks from the narrative body and insert the two empty marker fences where they belong. The narrative prose is preserved verbatim.
+2. Report orphans and any `needs-ocr` / `metadata-unverified` statuses in the final summary (unchanged).
 
 ## Phase 5 — Harvest ghosts (referenced-but-not-held papers)
 
-Runs after Phase 4 on every sync. Produces/updates `C/refs.yaml` and the ghost surfaces in `C/LANDSCAPE.md`. Ghosts are sourced ONLY from held papers' own bibliographies — no external lookup for discovery.
+Runs after Phase 4 on every sync. Produces/updates `C/refs.yaml`; the ghost surfaces in `C/LANDSCAPE.md` are rendered afterward by Phase 6. Ghosts are sourced ONLY from held papers' own bibliographies — no external lookup for discovery.
 
 1. **Extract bibliographies:** for each held paper, take the References/Bibliography section from `C/text/<slug>.md` (the tail after the last "References"/"Bibliography" heading).
 2. **Parse & normalize** each reference entry → first-author surname, year, title fragment, DOI/arXiv id if present. Bibliographies from `status: needs-ocr` papers may be garbled — best-effort only.
 3. **Resolve against held papers first:** if a reference matches an existing `C/index.yaml` slug (shared DOI/arXiv, or fuzzy title + first-author), it is a held→held citation, NOT a ghost — exclude it from the ghost pass. (Writing that citation as a real `relations:` edge is the deferred relations-backfill; for now it is only excluded from ghosting.)
 4. **Match/merge across papers:** group references that are the same work — exact by shared DOI/arXiv, else fuzzy on first-author + year + title. When a match is ambiguous, DO NOT merge (two near-duplicate ghosts is a smaller harm than a wrong merge). Each surviving group gets a `cited_by` list of the held slugs that reference it.
-5. **Select (hybrid):** keep a group as a ghost iff `len(cited_by) ≥ 2`, OR it is carried forward as `status: pinned`. Exclude any group whose key is `status: rejected`. Non-pinned singletons are excluded.
+5. **Record all candidates.** Do NOT apply the promotion threshold here — that is now the generator's job. Every surviving group is written to `C/refs.yaml` with its full `cited_by` list and a curation `status`. (Selection for the view — `count ≥ 2` or `pinned`, excluding `rejected` — is applied deterministically by `scripts/generate_views.py`, so an LLM miscount can never corrupt the ranking.)
 6. **Assign keys & reconcile with existing `C/refs.yaml`:**
    - New ghost → `key` = `YYYY-firstauthor-short-title` (same shape as a slug), frozen once assigned.
    - Existing ghost → preserve its `key`, `status`, and `note`; refresh `cited_by` and enriched fields.
    - **Promotion:** if a ghost now matches a paper newly held after this sync's Phase 3, remove it from `C/refs.yaml` (it has graduated). Its former `cited_by` are the held papers that cite it; converting those into real held→held `relations:` edges is **deferred** (the relations-backfill follow-up), because each such edge is outbound `{to: <promoted-slug>}` on the *citer's* own entry — not on the promoted paper's — and the relation `type` enum has no bare-citation type. Until backfill ships, promotion graduates the paper and drops the ghost only.
-7. **Enrich (best-effort, above-threshold ghosts only):** verify metadata via Crossref/arXiv exactly as Phase 1 does, filling `venue`/`ids`. Offline or no confident match → leave best-effort `title`/`year` with `ids: null`; retried on later syncs.
-8. **Write `C/refs.yaml`** (schema below), then render the ghost surfaces into `C/LANDSCAPE.md` (Phase 5 owns these; Phase 4 has already written the held content):
-   - **Promotion-candidate table** — a section **Ghost papers — referenced but not held (promotion candidates)**: a table sorted by pull (`count = len(cited_by)`) descending — `| ghost | year | pull | status | cited by | why |`. The `status` column shows `candidate` or `pinned` (pinned singletons are intentional, so they read correctly at `pull 1`). This is the promotion shortlist; the ghosts whose absence most weakens the corpus sit at the top.
-   - **Ghost nodes in the Mermaid graph** — draw only the top ~8 ghosts by pull to keep the graph readable (the table lists ALL ghosts). Each drawn ghost gets a hyphen-free node id `ghost_<key>` (hyphens in `<key>` → underscores), styled distinctly (dashed border, dimmed) via a `classDef ghost`, with edges labeled `references` from up to 3 of its citing held papers.
+7. **Enrich (best-effort):** for ghosts with `len(cited_by) ≥ 2` or `status: pinned` (this count is for choosing enrichment targets only; the generator remains the authority for the view), verify metadata via Crossref/arXiv exactly as Phase 1 does, filling `venue`/`ids`. Offline or no confident match → leave best-effort `title`/`year` with `ids: null`; retried on later syncs.
+8. **Write `C/refs.yaml`** (schema below). Rendering the ghost table and ghost graph nodes into `C/LANDSCAPE.md` is Phase 6's job, not Phase 5's.
 
 Curation verdicts persist across syncs: a ghost the user dismisses is recorded `status: rejected` with a `note` and never re-surfaces; a foundational singleton the agent keeps is `status: pinned` with a `note` reason.
+
+## Phase 6 — Generate views (terminal, deterministic)
+
+Runs last, after `C/index.yaml` and `C/refs.yaml` are final. Renders all mechanical views deterministically — the LLM writes none of them.
+
+Run: `python3 scripts/generate_views.py C` (where `C = corpora/<active-corpus>`).
+
+It writes `C/INDEX.md` whole and fills the `graph` and `ghosts` fenced regions of `C/LANDSCAPE.md`, leaving the narrative untouched.
+
+- **Prerequisite:** `python3` + PyYAML. If it exits with "PyYAML not installed", tell the user to run `pip install pyyaml` and stop — do not hand-render as a fallback.
+- **Fail-closed:** if it exits non-zero on malformed/incomplete YAML, fix the offending entry it names and re-run; never emit a hand-written view instead.
+- Include its confirmation (and any self-heal warnings) in the final sync summary.
 
 ## index.yaml entry schema
 
@@ -112,14 +140,14 @@ Every relation edge carries a one-line `why` justification grounded in the paper
   authors: ["Lee, Kim"]
   year: 2019
   venue: null                              # best-effort via Crossref/arXiv enrichment
-  ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (above-threshold ghosts only)
+  ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (enrichment targets only — see below)
   cited_by: [2023-smith-contrastive-distillation, 2021-doe-simclr-v3]
   why: "the benchmark dataset much of the corpus trains and evaluates on"
-  status: candidate                        # candidate (≥2 citers) | pinned (foundational singleton) | rejected
+  status: candidate                        # candidate | pinned (foundational singleton) | rejected — NOT threshold-gated; see below
   note: null                               # required reason when pinned or rejected
 ```
 
-`count = len(cited_by)`, always derived — never hand-authored. Only held papers contribute to `cited_by`. Ghosts are cited in prose as `⟨ghost:key⟩` and never ground a claim about their own content. The `why`, and any enriched `title`/`venue`/`ids`, are identity and decision-support only — they never ground a content claim about the ghost (that answer is always "not in your papers (referenced only)").
+`refs.yaml` stores **all** grouped candidates, including sub-threshold singletons (`status: candidate` with `count = 1`) — Phase 5 does not filter by count. `scripts/generate_views.py` is the sole place the promotion selection is applied: at render time it keeps a ghost for the view iff `count ≥ 2` or `status: pinned`, minus any `status: rejected`. `count = len(cited_by)`, always derived — never hand-authored. Only held papers contribute to `cited_by`. Ghosts are cited in prose as `⟨ghost:key⟩` and never ground a claim about their own content. The `why`, and any enriched `title`/`venue`/`ids`, are identity and decision-support only — they never ground a content claim about the ghost (that answer is always "not in your papers (referenced only)").
 
 ## Card template — notes/<slug>.md
 

@@ -47,3 +47,37 @@ def validate_ghosts(ghosts):
     for i, g in enumerate(ghosts):
         if not g.get("key"):
             raise DataError("refs.yaml entry #%d: missing required field 'key'" % i)
+
+
+INDEX_BANNER = "<!-- Generated from index.yaml — do not edit by hand. -->"
+
+
+def escape_cell(value):
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def fmt_tags(tags):
+    return ", ".join(tags or [])
+
+
+def render_index(entries):
+    rows = sorted(entries, key=lambda e: (-int(e["year"]), e["slug"]))
+    lines = [
+        INDEX_BANNER,
+        "",
+        "# Corpus index",
+        "",
+        "| slug | title | year | venue | tags | summary | status |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for e in rows:
+        lines.append("| %s | %s | %s | %s | %s | %s | %s |" % (
+            escape_cell(e["slug"]),
+            escape_cell(e["title"]),
+            escape_cell(e["year"]),
+            escape_cell(e.get("venue") or ""),
+            escape_cell(fmt_tags(e.get("tags"))),
+            escape_cell(e.get("summary") or ""),
+            escape_cell(e.get("status") or "ok"),
+        ))
+    return "\n".join(lines) + "\n"

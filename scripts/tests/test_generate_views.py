@@ -39,5 +39,16 @@ class LoadValidateTests(unittest.TestCase):
             gv.validate_ghosts([{"title": "x"}])
 
 
+class RenderIndexTests(unittest.TestCase):
+    def test_render_index_matches_golden(self):
+        entries = gv.load_yaml(fixture("index.yaml"), default=[])
+        with open(fixture("expected_INDEX.md"), encoding="utf-8") as f:
+            expected = f.read()
+        self.assertEqual(gv.render_index(entries), expected)
+
+    def test_escape_cell_pipes(self):
+        self.assertEqual(gv.escape_cell("a|b"), "a\\|b")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -140,7 +140,7 @@ Every relation edge carries a one-line `why` justification grounded in the paper
   authors: ["Lee, Kim"]
   year: 2019
   venue: null                              # best-effort via Crossref/arXiv enrichment
-  ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (above-threshold ghosts only)
+  ids: {doi: null, arxiv: null}            # best-effort via Crossref/arXiv (enrichment targets only — see below)
   cited_by: [2023-smith-contrastive-distillation, 2021-doe-simclr-v3]
   why: "the benchmark dataset much of the corpus trains and evaluates on"
   status: candidate                        # candidate | pinned (foundational singleton) | rejected — NOT threshold-gated; see below

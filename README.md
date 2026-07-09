@@ -74,8 +74,10 @@ Everything under `corpora/` — each corpus's `papers/`, `text/`, `notes/`, `_du
 - BibTeX export, Zotero sync, interactive graph.
 - Relations backfill — held→held citations discovered during ghost harvest becoming real graph edges.
 - Relevance filtering of generic-ML ghosts — the `reject` flow is the v1 answer.
+- Conversation capture — auto-saved, read-only Q&A transcripts per corpus (write-only: never re-loaded into context).
+- Python offload for deterministic work (view + ghost-count generation) to cut token cost.
 
-Design docs live in `docs/superpowers/specs/`.
+Design docs live in `docs/superpowers/specs/`; early/undesigned ideas in `docs/superpowers/ideas/`.
 
 ## License
 

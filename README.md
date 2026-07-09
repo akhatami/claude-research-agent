@@ -42,6 +42,7 @@ graph TD
 
 - [Claude Code](https://claude.com/claude-code)
 - `pdftotext` from poppler: `brew install poppler` (macOS) / `apt install poppler-utils` (Linux)
+- `python3` + PyYAML (`pip install pyyaml`) — used at ingestion to generate the corpus views. Asking questions needs neither.
 
 ## Quickstart
 
@@ -75,7 +76,7 @@ Everything under `corpora/` — each corpus's `papers/`, `text/`, `notes/`, `_du
 - Relations backfill — held→held citations discovered during ghost harvest becoming real graph edges.
 - Relevance filtering of generic-ML ghosts — the `reject` flow is the v1 answer.
 - Conversation capture — auto-saved, read-only Q&A transcripts per corpus (write-only: never re-loaded into context).
-- Python offload for deterministic work (view + ghost-count generation) to cut token cost.
+- Python offload for *reference/metadata parsing* (GROBID) — the heavier accuracy escalation; the view + ghost-count generator has shipped.
 
 Design docs live in `docs/superpowers/specs/`; early/undesigned ideas in `docs/superpowers/ideas/`.
 

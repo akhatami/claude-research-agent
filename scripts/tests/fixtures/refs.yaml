@@ -1,0 +1,26 @@
+- key: 2019-lee-benchmark
+  title: "A Large-Scale Benchmark for Representation Learning"
+  year: 2019
+  cited_by: [2023-smith-contrastive-distillation, 2021-doe-simclr]
+  why: "the shared benchmark much of the corpus evaluates on"
+  status: candidate
+- key: 2018-kim-foundational
+  title: "Foundational Method X"
+  year: 2018
+  cited_by: [2023-smith-contrastive-distillation]
+  why: "foundational method the corpus builds on"
+  status: pinned
+  note: "kept as a foundational singleton"
+- key: 2015-old-singleton
+  title: "An Older Method"
+  year: 2015
+  cited_by: [2021-doe-simclr]
+  why: "cited once"
+  status: candidate
+- key: 2017-generic-ml
+  title: "Generic ML Trick"
+  year: 2017
+  cited_by: [2023-smith-contrastive-distillation, 2020-ng-scanned-survey]
+  why: "too generic to promote"
+  status: rejected
+  note: "generic ML, dismissed"

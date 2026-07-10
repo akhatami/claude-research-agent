@@ -38,7 +38,7 @@ Include uncertain dedupe cases as explicit questions. If a new PDF matches an ex
 
 ## Phase 3 — Execute
 
-**First sync of a new corpus:** if `C/` contains only `papers/` (no `C/index.yaml`), create the skeleton before ingesting — `C/text/`, `C/notes/`, `C/_duplicates/`, an empty `C/index.yaml`, and an empty `C/refs.yaml`. This is how a corpus created by a bare `mkdir corpora/<name>/papers` becomes live.
+**First sync of a new corpus:** if `C/` contains only `papers/` (no `C/index.yaml`), create the skeleton before ingesting — `C/text/`, `C/notes/`, `C/_duplicates/`, `C/synthesis/`, an empty `C/index.yaml`, and an empty `C/refs.yaml`. This is how a corpus created by a bare `mkdir corpora/<name>/papers` becomes live.
 
 Per approved row:
 

@@ -43,4 +43,21 @@ These build on the multi-corpus layout (`corpora/<name>/`, one active corpus per
 
 ---
 
+## 3. Relations backfill (held→held citation edges)
+
+**Captured:** 2026-07-10 (moved out of the `sync` skill, where it was inline commentary rather than an instruction).
+
+**The idea.** Phase 5 of `/sync` already detects when one held paper cites another — it resolves the reference against `index.yaml` and excludes it from the ghost pass. That detection is thrown away. It could instead become a real `relations:` edge, so the LANDSCAPE graph shows held→held citations without an assistant hand-authoring each one.
+
+**Why it was deferred.** Two things don't line up:
+
+1. **The edge belongs to the wrong entry.** A citation edge is outbound `{to: <cited-slug>}` on the *citer's* entry, not on the cited paper's. So promoting a ghost — which is where the need surfaces most — means writing edges into entries the promotion isn't otherwise touching.
+2. **The `type` enum has no bare-citation member.** Existing types (`builds-on`, `same-method-family`, `same-dataset`, `competes-with`, `surveys`) all assert a *relationship*, and each carries a required `why` grounded in the paper. "X cites Y" asserts nothing and has no honest `why`. Adding a `cites` type would flood the graph with low-information edges — the graph's value is that every edge means something.
+
+**Where it would land.** Either a new relation type with a rendering rule that keeps bare citations out of the main graph, or a separate `citations:` field distinct from `relations:`. Needs a design pass before implementation.
+
+Until it ships, promotion graduates the paper and drops the ghost, and nothing else.
+
+---
+
 **Next step when revisited:** brainstorm each separately (they interact via "modes" but are independently shippable). Idea #1 (capture) is smaller and corpus-scoped; idea #2 (Python) is a deliberate ethos trade-off — start with the view/ghost-count generator if pursued.

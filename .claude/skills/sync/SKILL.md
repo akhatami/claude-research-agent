@@ -1,19 +1,36 @@
 ---
 name: sync
-description: Ingest new or changed PDFs in papers/ — extract text, verify metadata, dedupe, rename once (after dry-run approval), write per-paper cards, update index.yaml, harvest referenced-but-not-held ghost papers into refs.yaml, and regenerate INDEX.md and LANDSCAPE.md. Use when the session-start hook reports new papers or the user asks to sync/organize the corpus.
+description: Use when the session-start hook reports new or changed PDFs in the active corpus, when the user asks to sync, ingest, re-ingest, or organize a corpus, or when INDEX.md / LANDSCAPE.md need regenerating after index.yaml or refs.yaml changed.
 ---
 
 # /sync — corpus ingestion and regeneration
 
 **Active corpus.** `/sync` operates on exactly one corpus: the folder named in `.active-corpus`. Throughout this skill, `C` denotes `corpora/<active-corpus>/`. Every corpus path below — `papers/`, `text/`, `notes/`, `_duplicates/`, `index.yaml`, `refs.yaml`, `INDEX.md`, `LANDSCAPE.md` — lives under `C/`. If no corpus is selected yet, stop and ask the user to open one; never sync across corpora. (Temporary extraction to `/tmp` is not corpus-scoped.)
 
-Incremental by design: a PDF is "new" iff its sha256 does not appear in `C/index.yaml`. On each sync, also re-attempt metadata verification for entries with `status: metadata-unverified`, updating them to `ok` on success. Also report **orphans** (index entries whose PDF no longer exists in `C/papers/` or `C/_duplicates/`) — report only, never auto-remove.
+Incremental by design: a PDF is **unseen** iff its sha256 does not appear in `C/index.yaml` (neither as an entry's `file_hash` nor in any entry's `duplicates:` list). Every unseen PDF is classified in Phase 1 step 5 as a *new paper*, a *refresh* of a held paper, or a *duplicate*. A PDF whose hash is already known is skipped silently.
+
+On each sync, also re-attempt metadata verification for entries with `status: metadata-unverified`, updating them to `ok` on success. Also report **orphans** (index entries whose PDF no longer exists in `C/papers/` or `C/_duplicates/`) — report only, never auto-remove.
 
 Prerequisite: `pdftotext` (poppler). If missing, stop and tell the user to run `brew install poppler`.
 
+## Red flags — STOP
+
+Four rules in this skill are absolute. If you catch yourself thinking any of the left column, you are rationalizing your way out of one of them.
+
+| Rationalization | Reality |
+|---|---|
+| "The user said 'just sync it' — approval is implied." | The Phase 2 table is the approval. A standing "go ahead" is not approval of a plan the user has not seen. Present the table, wait. |
+| "Only one new paper — the plan table is overkill." | One row is still a row. Every file change passes through Phase 2, every time. |
+| "PyYAML is missing / the generator crashed — I'll write INDEX.md by hand just this once." | A hand-written view silently diverges from `index.yaml` and no one finds out. Fix the input or install the dep. Never render a view yourself. |
+| "This slug has a typo / reads badly — I'll correct it while I'm here." | Slugs are frozen at first ingestion, forever. Every card, citation, and synthesis on disk points at it. Ugly and stable beats correct and moving. |
+| "This duplicate is obviously junk — deleting it is cleaner." | Nothing in a corpus is ever deleted. Superseded files go to `C/_duplicates/` with the verdict recorded on the keeper's index entry. |
+| "The PDF changed, so it's a new paper." | Same paper, new bytes, is a **refresh** — Phase 1 step 5. It keeps its slug and rewrites its text and card. Ingesting it as new orphans the old entry and strands stale text that still grounds answers. |
+
+**Violating the letter of these rules is violating the spirit of them.** The corpus's only value is that a citation can be verified against `C/text/`; each of these rules protects exactly that.
+
 ## Phase 1 — Analyze (no file changes yet)
 
-For each new PDF:
+For each unseen PDF:
 
 1. **Extract** text: `pdftotext -layout C/papers/<file>.pdf /tmp/<file>.txt`.
 2. **OCR check:** compute characters per page (total chars ÷ page count from `pdfinfo` or extraction output). If < 200 chars/page, the paper gets `status: needs-ocr`; it is still indexed and carded from whatever text exists, with the limitation noted in the card.
@@ -21,35 +38,54 @@ For each new PDF:
    - Crossref: `https://api.crossref.org/works?query.title=<title>&rows=3` — match by title similarity + first author.
    - arXiv: `http://export.arxiv.org/api/query?search_query=ti:"<title>"&max_results=3`.
    - If offline or no confident match: `status: metadata-unverified`, best-effort fields from the PDF.
-4. **Slug:** `YYYY-firstauthor-short-title` — year, first author's family name (lowercase), 3–6 word kebab-case title fragment. On collision, extend the title fragment.
-5. **Dedupe verdict:** the paper is a duplicate of an index entry if they share a DOI or arXiv ID, or if title + author list match fuzzily (near-identical title, same first author). Preprint vs camera-ready = same paper: **keep the published/latest version**, move the other to `C/_duplicates/`. If the fuzzy match is not confident, mark the verdict "uncertain — user decides" for Phase 2.
+4. **Same-work match:** the PDF is the same work as an index entry if they share a DOI or arXiv ID, or if title + author list match fuzzily (near-identical title, same first author). If the fuzzy match is not confident, mark it "uncertain — user decides" and let Phase 2 resolve it.
+5. **Classify** into exactly one of three actions:
+   - **New paper** — no same-work match against any index entry. Assign a slug (step 6).
+   - **Refresh** — same-work match, and the unseen PDF is the version to keep: it is the published/camera-ready over a preprint, or a later version of the same arXiv ID, or it arrived at the held entry's own path `C/papers/<slug>.pdf` with a different hash (the user overwrote it in place). Preprint vs camera-ready is the same paper, and **the newer version wins**.
+   - **Duplicate** — same-work match, and the *held* copy is the version to keep. The unseen PDF is the redundant one.
+
+   A refresh **keeps the matched entry's frozen slug**. Never mint a second slug for a work already held: a slug collision between two same-work PDFs is a refresh or a duplicate, never a new paper.
+6. **Slug (new papers only):** `YYYY-firstauthor-short-title` — year, first author's family name (lowercase), 3–6 word kebab-case title fragment. If this collides with a held slug belonging to a *genuinely different* work, extend the title fragment.
 
 ## Phase 2 — Dry-run approval (REQUIRED before any file changes)
 
 Present one plan table to the user:
 
-| current file | action | slug / destination | dedupe verdict |
+| current file | action | slug / destination | verdict |
 |---|---|---|---|
 | `2301.04567v2.pdf` | rename | `C/papers/2023-smith-contrastive-distillation.pdf` | new paper |
 | `smith_preprint.pdf` | move | `C/_duplicates/smith_preprint.pdf` | duplicate of 2023-smith-… (arXiv id match) |
+| `doe_neurips_camera_ready.pdf` | refresh | `C/papers/2021-doe-simclr-v3.pdf` (slug kept) | newer version of 2021-doe-… ; text + card rewritten, `2021-doe-simclr-v3.pdf` (old) → `C/_duplicates/` |
 | `Lee_Benchmark_2019.pdf` | rename + promote | `C/papers/2019-lee-foundational-benchmark.pdf` | promotes ⟨ghost:2019-lee-foundational-benchmark⟩ → held paper |
 
-Include uncertain dedupe cases as explicit questions. If a new PDF matches an existing ghost in `C/refs.yaml` (shared DOI/arXiv, or fuzzy title + first-author), present it as a **promotion**: on approval it is ingested as a normal held paper, and Phase 5 then removes its former ghost entry from `C/refs.yaml`. **Wait for approval. Do not touch files before it.**
+A refresh row must say what it overwrites — the user is approving the replacement of text and a card that existing syntheses may already cite. Include uncertain same-work matches as explicit questions. If a new PDF matches an existing ghost in `C/refs.yaml` (shared DOI/arXiv, or fuzzy title + first-author), present it as a **promotion**: on approval it is ingested as a normal held paper, and Phase 5 then removes its former ghost entry from `C/refs.yaml`. **Wait for approval. Do not touch files before it.**
 
 ## Phase 3 — Execute
 
 **First sync of a new corpus:** if `C/` contains only `papers/` (no `C/index.yaml`), create the skeleton before ingesting — `C/text/`, `C/notes/`, `C/_duplicates/`, `C/synthesis/`, an empty `C/index.yaml`, and an empty `C/refs.yaml`. This is how a corpus created by a bare `mkdir corpora/<name>/papers` becomes live.
 
-Per approved row:
+Per approved row, by action:
 
-1. Rename PDF to `C/papers/<slug>.pdf` (this is the ONLY time this file is ever renamed) or move duplicate to `C/_duplicates/` (keep its original name there). When moving a duplicate, record the verdict in the KEEPER's `C/index.yaml` entry under its `duplicates:` list (schema below) — recording the hash preserves provenance and suppresses re-detection if the same file is dropped into `C/papers/` again.
+**New paper**
+1. Rename the PDF to `C/papers/<slug>.pdf`. This is the ONLY time this file is ever renamed.
 2. Save extracted text to `C/text/<slug>.md`.
 3. Write the card to `C/notes/<slug>.md` (template below).
 4. Append the entry to `C/index.yaml` (schema below).
 
+**Duplicate**
+1. Move the redundant PDF to `C/_duplicates/`, keeping its original name. If that name is already taken there, append the first 8 hex of its sha256.
+2. Record the verdict on the KEEPER's `C/index.yaml` entry under its `duplicates:` list (schema below). Recording the hash preserves provenance and suppresses re-detection if the same file is dropped into `C/papers/` again.
+
+**Refresh** — the entry's slug, and every citation pointing at it, survive; only the bytes behind them change.
+1. Move the superseded PDF from `C/papers/<slug>.pdf` to `C/_duplicates/`. Its name there is already the slug, so append the first 8 hex of its sha256: `C/_duplicates/<slug>-<hash8>.pdf`.
+2. Rename the incoming PDF to `C/papers/<slug>.pdf` — the same frozen slug.
+3. Overwrite `C/text/<slug>.md` with the newly extracted text.
+4. Rewrite `C/notes/<slug>.md` from the new text. Page-anchored quotes in the old card may point at pages that moved; re-derive them rather than carrying them over.
+5. Update the entry in place: new `file_hash`, `original_filename`, and any metadata the newer version corrects (`venue` and `ids` especially — a camera-ready usually resolves a `metadata-unverified` preprint). Keep `slug`, `tags`, and `relations` unless the new text contradicts them. Append the superseded file to the entry's own `duplicates:` list.
+
 ## Phase 4 — Regenerate (narrative only)
 
-The mechanical views are no longer hand-written here — they are produced by `scripts/generate_views.py` in Phase 6. Phase 4 is now judgment-only:
+Phase 4 is judgment-only. The mechanical views are produced by `scripts/generate_views.py` in Phase 6.
 
 1. **`C/LANDSCAPE.md` narrative.** Author (or update) the narrative region only: the corpus story — thematic clusters (from tags/relations), what each cluster solves, how clusters connect, where the open tensions/gaps are. Narrative prose, not bullets-only. Do NOT hand-write the Mermaid graph or the ghost table; those are generated fenced regions Phase 6 fills.
    - **First sync of a corpus:** create `C/LANDSCAPE.md` from this skeleton (the generator will fill the fences in Phase 6):
@@ -71,7 +107,7 @@ The mechanical views are no longer hand-written here — they are produced by `s
      <!-- END GENERATED:ghosts -->
      ```
    - **Migrating an existing corpus (one-time):** if `C/LANDSCAPE.md` still has an un-fenced hand-written graph and ghost table, delete those two blocks from the narrative body and insert the two empty marker fences where they belong. The narrative prose is preserved verbatim.
-2. Report orphans and any `needs-ocr` / `metadata-unverified` statuses in the final summary (unchanged).
+2. Report orphans and any `needs-ocr` / `metadata-unverified` statuses in the final summary. Report refreshes explicitly, naming the slugs whose text changed — any synthesis in `C/synthesis/` that cites one of them may now quote text that no longer exists.
 
 ## Phase 5 — Harvest ghosts (referenced-but-not-held papers)
 
@@ -79,15 +115,15 @@ Runs after Phase 4 on every sync. Produces/updates `C/refs.yaml`; the ghost surf
 
 1. **Extract bibliographies:** for each held paper, take the References/Bibliography section from `C/text/<slug>.md` (the tail after the last "References"/"Bibliography" heading).
 2. **Parse & normalize** each reference entry → first-author surname, year, title fragment, DOI/arXiv id if present. Bibliographies from `status: needs-ocr` papers may be garbled — best-effort only.
-3. **Resolve against held papers first:** if a reference matches an existing `C/index.yaml` slug (shared DOI/arXiv, or fuzzy title + first-author), it is a held→held citation, NOT a ghost — exclude it from the ghost pass. (Writing that citation as a real `relations:` edge is the deferred relations-backfill; for now it is only excluded from ghosting.)
+3. **Resolve against held papers first:** if a reference matches an existing `C/index.yaml` slug (shared DOI/arXiv, or fuzzy title + first-author), it is a held→held citation, NOT a ghost — exclude it from the ghost pass.
 4. **Match/merge across papers:** group references that are the same work — exact by shared DOI/arXiv, else fuzzy on first-author + year + title. When a match is ambiguous, DO NOT merge (two near-duplicate ghosts is a smaller harm than a wrong merge). Each surviving group gets a `cited_by` list of the held slugs that reference it.
-5. **Record all candidates.** Do NOT apply the promotion threshold here — that is now the generator's job. Every surviving group is written to `C/refs.yaml` with its full `cited_by` list and a curation `status`. (Selection for the view — `count ≥ 2` or `pinned`, excluding `rejected` — is applied deterministically by `scripts/generate_views.py`, so an LLM miscount can never corrupt the ranking.)
+5. **Record all candidates.** Do NOT apply the promotion threshold here — that is the generator's job. Every surviving group is written to `C/refs.yaml` with its full `cited_by` list and a curation `status`. (Selection for the view — `count ≥ 2` or `pinned`, excluding `rejected` — is applied deterministically by `scripts/generate_views.py`, so an LLM miscount can never corrupt the ranking.)
 6. **Assign keys & reconcile with existing `C/refs.yaml`:**
    - New ghost → `key` = `YYYY-firstauthor-short-title` (same shape as a slug), frozen once assigned.
    - Existing ghost → preserve its `key`, `status`, and `note`; refresh `cited_by` and enriched fields.
-   - **Promotion:** if a ghost now matches a paper newly held after this sync's Phase 3, remove it from `C/refs.yaml` (it has graduated). Its former `cited_by` are the held papers that cite it; converting those into real held→held `relations:` edges is **deferred** (the relations-backfill follow-up), because each such edge is outbound `{to: <promoted-slug>}` on the *citer's* own entry — not on the promoted paper's — and the relation `type` enum has no bare-citation type. Until backfill ships, promotion graduates the paper and drops the ghost only.
+   - **Promotion:** if a ghost matches a paper newly held after this sync's Phase 3, remove it from `C/refs.yaml` — it has graduated. Promotion graduates the paper and drops the ghost, nothing more; its former `cited_by` are not converted into held→held `relations:` edges (see the relations-backfill entry in `docs/superpowers/ideas/`).
 7. **Enrich (best-effort):** for ghosts with `len(cited_by) ≥ 2` or `status: pinned` (this count is for choosing enrichment targets only; the generator remains the authority for the view), verify metadata via Crossref/arXiv exactly as Phase 1 does, filling `venue`/`ids`. Offline or no confident match → leave best-effort `title`/`year` with `ids: null`; retried on later syncs.
-8. **Write `C/refs.yaml`** (schema below). Rendering the ghost table and ghost graph nodes into `C/LANDSCAPE.md` is Phase 6's job, not Phase 5's.
+8. **Write `C/refs.yaml`** (schema below). Phase 6 renders the ghost table and ghost graph nodes into `C/LANDSCAPE.md`.
 
 Curation verdicts persist across syncs: a ghost the user dismisses is recorded `status: rejected` with a `note` and never re-surfaces; a foundational singleton the agent keeps is `status: pinned` with a `note` reason.
 
@@ -96,6 +132,8 @@ Curation verdicts persist across syncs: a ghost the user dismisses is recorded `
 Runs last, after `C/index.yaml` and `C/refs.yaml` are final. Renders all mechanical views deterministically — the LLM writes none of them.
 
 Run: `python3 scripts/generate_views.py C` (where `C = corpora/<active-corpus>`).
+
+**Views-only mode.** When the user asks to regenerate `INDEX.md` or `LANDSCAPE.md` without ingesting anything — for instance after hand-editing `index.yaml`, or after curating a ghost's `status` in `refs.yaml` — run this phase alone. Phases 1–5 are skipped; no approval gate is needed because no PDF, text, or card is touched.
 
 It writes `C/INDEX.md` whole and fills the `graph` and `ghosts` fenced regions of `C/LANDSCAPE.md`, leaving the narrative untouched.
 
@@ -128,7 +166,7 @@ Entries live in `C/index.yaml`.
 
 Every relation edge carries a one-line `why` justification grounded in the paper.
 
-`duplicates` is optional and only present on entries that are the kept version of at least one duplicate. Recording the duplicate's hash also preserves provenance and suppresses re-detection if the same file is dropped into `C/papers/` again.
+`duplicates` is optional and only present on entries that have superseded at least one file — either a redundant copy (duplicate) or an older version of themselves (refresh). Recording each hash preserves provenance and suppresses re-detection if the same file is dropped into `C/papers/` again.
 
 ## refs.yaml entry schema (ghost tier)
 

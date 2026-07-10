@@ -1,4 +1,11 @@
 # Corpus-derived content stays local — this repo is a replicable template.
+# This covers each corpus's papers/, text/, notes/, _duplicates/, synthesis/,
+# index.yaml, refs.yaml, INDEX.md, and LANDSCAPE.md.
 corpora/*
 !corpora/.gitkeep
 .active-corpus
+
+# OS, editor, and interpreter noise — none of it belongs in a template repo.
+.DS_Store
+__pycache__/
+.obsidian/

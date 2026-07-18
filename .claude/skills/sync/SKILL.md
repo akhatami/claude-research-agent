@@ -77,11 +77,17 @@ Per approved row, by action:
 2. Record the verdict on the KEEPER's `C/index.yaml` entry under its `duplicates:` list (schema below). Recording the hash preserves provenance and suppresses re-detection if the same file is dropped into `C/papers/` again.
 
 **Refresh** — the entry's slug, and every citation pointing at it, survive; only the bytes behind them change.
-1. Move the superseded PDF from `C/papers/<slug>.pdf` to `C/_duplicates/`. Its name there is already the slug, so append the first 8 hex of its sha256: `C/_duplicates/<slug>-<hash8>.pdf`.
-2. Rename the incoming PDF to `C/papers/<slug>.pdf` — the same frozen slug.
-3. Overwrite `C/text/<slug>.md` with the newly extracted text.
-4. Rewrite `C/notes/<slug>.md` from the new text. Page-anchored quotes in the old card may point at pages that moved; re-derive them rather than carrying them over.
-5. Update the entry in place: new `file_hash`, `original_filename`, and any metadata the newer version corrects (`venue` and `ids` especially — a camera-ready usually resolves a `metadata-unverified` preprint). Keep `slug`, `tags`, and `relations` unless the new text contradicts them. Append the superseded file to the entry's own `duplicates:` list.
+
+Step 1 branches on one observable: **is the incoming PDF a separate file, or is it already at the slug path?**
+
+1a. **Side-by-side** — the incoming PDF has its own filename (e.g. `doe_camera_ready.pdf`) and the superseded bytes still sit at `C/papers/<slug>.pdf`. Move the superseded PDF to `C/_duplicates/<slug>-<hash8>.pdf` (its name there would collide with the slug, so append the first 8 hex of its sha256). Then rename the incoming PDF to `C/papers/<slug>.pdf`.
+
+1b. **In-place overwrite** — the user replaced `C/papers/<slug>.pdf`'s bytes directly, so the file is already correctly named and the superseded bytes are **gone from disk**. There is nothing to move; do not move `C/papers/<slug>.pdf` anywhere (it now holds the *new* bytes — moving it empties `papers/`). The superseded copy cannot be preserved because the user did not keep it.
+
+2. Overwrite `C/text/<slug>.md` with the newly extracted text.
+3. Rewrite `C/notes/<slug>.md` from the new text. Page-anchored quotes in the old card may point at pages that moved; re-derive them rather than carrying them over.
+4. Update the entry in place: new `file_hash`, `original_filename`, and any metadata the newer version corrects (`venue` and `ids` especially — a camera-ready usually resolves a `metadata-unverified` preprint). Keep `slug`, `tags`, and `relations` unless the new text contradicts them.
+5. Record the superseded version on the entry's own `duplicates:` list, so its hash is remembered and the same bytes are never re-ingested if dropped back in. In the **side-by-side** case, `file:` is the `_duplicates/` path. In the **in-place** case, the bytes were not retained: record the old `file_hash` with `file: null` and a verdict noting "overwritten in place; superseded bytes not retained."
 
 ## Phase 4 — Regenerate (narrative only)
 
@@ -162,6 +168,7 @@ Entries live in `C/index.yaml`.
       # types: builds-on | same-method-family | same-dataset | competes-with | surveys
   duplicates:
     - {file: "_duplicates/attention-v1.pdf", original_filename: "attention-v1.pdf", file_hash: sha256:<full hex digest>, verdict: "same arXiv ID (v1); kept latest version"}
+    - {file: null, original_filename: "2301.04567v1.pdf", file_hash: sha256:<full hex digest>, verdict: "refresh overwritten in place; superseded bytes not retained"}
 ```
 
 Every relation edge carries a one-line `why` justification grounded in the paper.
